@@ -27,22 +27,135 @@
 #include "ext/standard/info.h"
 #include "php_rtrack.h"
 
+#ifndef PHP_FE_END
+	#define PHP_FE_END {NULL, NULL, NULL}
+#endif
+
 /* If you declare any globals in php_rtrack.h uncomment this:
-ZEND_DECLARE_MODULE_GLOBALS(rtrack)
 */
+ZEND_DECLARE_MODULE_GLOBALS(rtrack)
 
 /* True global resources - no need for thread safety here */
 static int le_rtrack;
 
 /* {{{ PHP_INI
  */
-/* Remove comments and fill if you need to have entries in php.ini
 PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY("rtrack.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_rtrack_globals, rtrack_globals)
-    STD_PHP_INI_ENTRY("rtrack.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_rtrack_globals, rtrack_globals)
+    // STD_PHP_INI_ENTRY("rtrack.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_rtrack_globals, rtrack_globals)
+    STD_PHP_INI_ENTRY("rtrack.log_file", "", PHP_INI_ALL, OnUpdateString, log_file, zend_rtrack_globals, rtrack_globals)
+    STD_PHP_INI_ENTRY("rtrack.hook_func", "", PHP_INI_ALL, OnUpdateString, hook_func, zend_rtrack_globals, rtrack_globals)
 PHP_INI_END()
-*/
 /* }}} */
+
+ZEND_API zend_op_array *(*org_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
+
+ZEND_API void rtrack_call_hook_func(const char* hook_func, const char* filename)
+{
+	zval	retval;
+	zval	*zfuncname;
+	zval    *param;
+	char	*message;
+
+	INIT_ZVAL(retval);
+	MAKE_STD_ZVAL(zfuncname);
+	MAKE_STD_ZVAL(param);
+
+	ZVAL_STRING(zfuncname, hook_func, 1);
+	ZVAL_STRING(param, filename, 1);
+
+	if (call_user_function(EG(function_table), NULL, zfuncname, &retval, 1, &param TSRMLS_CC) != SUCCESS) {
+
+		spprintf(&message, 0, "Error calling hook_func: %s", hook_func);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, message);
+		efree(message);
+
+		zval_ptr_dtor(&zfuncname);
+		zval_ptr_dtor(&param);
+		return;
+	}
+
+	zval_ptr_dtor(&zfuncname);
+	zval_ptr_dtor(&param);
+}
+
+ZEND_API void rtrack_record_log(const char* filename)
+{
+  time_t current_time = {0};
+  struct tm * time_info = {0};
+  char timeString[32] = {0};  // space for "YYYY-mm-dd HH:MM:SS \0"
+
+  const char *hook_func = RTRACK_G(hook_func);
+  if (hook_func && *hook_func){
+	  rtrack_call_hook_func(hook_func, filename);
+	  return;
+  }
+
+  const char *log_file = RTRACK_G(log_file);
+  if (!log_file || !*log_file){
+	  return;
+  }
+
+  FILE *fp = fopen(log_file, "a+");
+  if (!fp){
+      return;
+  }
+
+  time(&current_time);
+  time_info = localtime(&current_time);
+
+  strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S ", time_info);
+
+  fputs(timeString, fp);
+  fputs(filename, fp);
+  fputs("\n", fp);
+
+  fflush(fp);
+  fclose(fp);
+
+
+  // zval file_zval;
+  // INIT_ZVAL(file_zval);
+  // ZVAL_STRING(&file_zval, "/tmp/require.log", 1);
+
+  // zval msg_zval;
+  // INIT_ZVAL(msg_zval);
+  // ZVAL_STRING(&msg_zval, filename, 1);
+
+
+  // zval flag_zval;
+  // INIT_ZVAL(flag_zval);
+  // ZVAL_LONG(&flag_zval, 8);
+
+  // zval *params[] = { &file_zval, &msg_zval, &flag_zval };
+  // zend_uint param_count = 3;
+  // zval *retval_ptr;
+
+  // zval function_name;
+  // INIT_ZVAL(function_name);
+  // ZVAL_STRING(&function_name, "file_put_contents", 1);
+
+  // if (call_user_function(
+  //         CG(function_table), NULL /* no object */, &function_name,
+  //         retval_ptr, param_count, params TSRMLS_CC
+  //     ) == SUCCESS
+  // ) {
+  //     /* do something with retval_ptr here if you like */
+  // }
+
+  // /* don't forget to free the zvals */
+  // zval_ptr_dtor(&retval_ptr);
+  // zval_dtor(&function_name);
+  // zval_dtor(&file_zval);
+  // zval_dtor(&msg_zval);
+  // zval_dtor(&flag_zval);
+}
+
+ZEND_API zend_op_array *rtrack_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
+{
+  rtrack_record_log(file_handle->filename);
+  return org_compile_file(file_handle, type);
+}
+
 
 /* Remove the following function when you have successfully modified config.m4
    so that your module can be compiled into PHP, it exists only for testing
@@ -74,22 +187,23 @@ PHP_FUNCTION(confirm_rtrack_compiled)
 
 /* {{{ php_rtrack_init_globals
  */
-/* Uncomment this function if you have INI entries
 static void php_rtrack_init_globals(zend_rtrack_globals *rtrack_globals)
 {
-	rtrack_globals->global_value = 0;
-	rtrack_globals->global_string = NULL;
+	// rtrack_globals->global_value = 0;
+	rtrack_globals->log_file = NULL;
 }
-*/
 /* }}} */
 
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(rtrack)
 {
-	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();
-	*/
+	
+	CG(compiler_options) |= ZEND_COMPILE_EXTENDED_INFO;
+	org_compile_file = zend_compile_file;
+	zend_compile_file = rtrack_compile_file;
+
 	return SUCCESS;
 }
 /* }}} */
@@ -98,9 +212,11 @@ PHP_MINIT_FUNCTION(rtrack)
  */
 PHP_MSHUTDOWN_FUNCTION(rtrack)
 {
-	/* uncomment this line if you have INI entries
 	UNREGISTER_INI_ENTRIES();
-	*/
+
+	CG(compiler_options) |= ZEND_COMPILE_EXTENDED_INFO;
+	zend_compile_file = org_compile_file;
+
 	return SUCCESS;
 }
 /* }}} */

@@ -5,7 +5,7 @@
 // ARG_WITH("rtrack", "for rtrack support", "no");
 
 // Otherwise, use ARG_ENABLE
-// ARG_ENABLE("rtrack", "enable rtrack support", "no");
+ARG_ENABLE("rtrack", "enable rtrack support", "no");
 
 if (PHP_RTRACK != "no") {
 	EXTENSION("rtrack", "rtrack.c");

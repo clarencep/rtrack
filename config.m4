@@ -13,9 +13,9 @@ dnl [  --with-rtrack             Include rtrack support])
 
 dnl Otherwise use enable:
 
-dnl PHP_ARG_ENABLE(rtrack, whether to enable rtrack support,
-dnl Make sure that the comment is aligned:
-dnl [  --enable-rtrack           Enable rtrack support])
+PHP_ARG_ENABLE(rtrack, whether to enable rtrack support,
+Make sure that the comment is aligned:
+[  --enable-rtrack           Enable rtrack support])
 
 if test "$PHP_RTRACK" != "no"; then
   dnl Write more examples of tests here...

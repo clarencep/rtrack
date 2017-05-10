@@ -42,11 +42,14 @@ extern zend_module_entry rtrack_module_entry;
   	Declare any global variables you may need between the BEGIN
 	and END macros here:     
 
-ZEND_BEGIN_MODULE_GLOBALS(rtrack)
-	long  global_value;
-	char *global_string;
-ZEND_END_MODULE_GLOBALS(rtrack)
 */
+
+ZEND_BEGIN_MODULE_GLOBALS(rtrack)
+	// long  global_value;
+	char *log_file;
+  char *hook_func;
+ZEND_END_MODULE_GLOBALS(rtrack)
+
 
 /* In every utility function you add that needs to use variables 
    in php_rtrack_globals, call TSRMLS_FETCH(); after declaring other 

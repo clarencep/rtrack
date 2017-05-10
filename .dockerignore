@@ -1,0 +1,9 @@
+.git
+.vscode
+.*
+*~
+*.log
+README.md
+build-docker.sh
+Dockerfile
+rtrack.php
