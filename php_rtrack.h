@@ -46,6 +46,7 @@ extern zend_module_entry rtrack_module_entry;
 
 ZEND_BEGIN_MODULE_GLOBALS(rtrack)
 	// long  global_value;
+  long  count;
 	char *log_file;
   char *hook_func;
 ZEND_END_MODULE_GLOBALS(rtrack)

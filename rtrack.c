@@ -152,8 +152,9 @@ ZEND_API void rtrack_record_log(const char* filename)
 
 ZEND_API zend_op_array *rtrack_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
 {
-  rtrack_record_log(file_handle->filename);
-  return org_compile_file(file_handle, type);
+	RTRACK_G(count)++;
+	rtrack_record_log(file_handle->filename);
+	return org_compile_file(file_handle, type);
 }
 
 
@@ -184,6 +185,14 @@ PHP_FUNCTION(confirm_rtrack_compiled)
    follow this convention for the convenience of others editing your code.
 */
 
+/* {{{ proto int rtrack_count()
+   Return a int of how many files are required/included */
+PHP_FUNCTION(rtrack_count)
+{
+	long n = RTRACK_G(count);
+	RETURN_LONG(n);
+}
+/* }}} */
 
 /* {{{ php_rtrack_init_globals
  */
@@ -199,6 +208,8 @@ static void php_rtrack_init_globals(zend_rtrack_globals *rtrack_globals)
 PHP_MINIT_FUNCTION(rtrack)
 {
 	REGISTER_INI_ENTRIES();
+	
+	RTRACK_G(count) = 0;
 	
 	CG(compiler_options) |= ZEND_COMPILE_EXTENDED_INFO;
 	org_compile_file = zend_compile_file;
@@ -259,6 +270,7 @@ PHP_MINFO_FUNCTION(rtrack)
  */
 const zend_function_entry rtrack_functions[] = {
 	PHP_FE(confirm_rtrack_compiled,	NULL)		/* For testing, remove later. */
+	PHP_FE(rtrack_count,	NULL)
 	PHP_FE_END	/* Must be the last line in rtrack_functions[] */
 };
 /* }}} */

@@ -68,3 +68,5 @@ require('test-include.php');
 
 run("ls -al *.log");
 run("cat require.log");
+
+echo "Total required/included files count: " . rtrack_count() . PHP_EOL;
