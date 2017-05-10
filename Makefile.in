@@ -1,7 +1,0 @@
-RTRACK_LIBADD = librtrack.so
-LTLIBRARY_NAME		= librtrack.la
-LTLIBRARY_SOURCES	= rtrack.c
-LTLIBRARY_SHARED_NAME	= rtrack.la
-LTLIBRARY_SHARED_LIBADD	= $(RTRACK_LIBADD)
-
-include $(top_srcdir)/build/dynlib.mk

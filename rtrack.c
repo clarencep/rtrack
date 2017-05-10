@@ -1,136 +1,177 @@
 /*
- * php_screw
- * (C) 2007, Kunimasa Noda/PM9.com, Inc. <http://www.pm9.com,  kuni@pm9.com>
- * see file LICENSE for license details
- */
+  +----------------------------------------------------------------------+
+  | PHP Version 5                                                        |
+  +----------------------------------------------------------------------+
+  | Copyright (c) 1997-2016 The PHP Group                                |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.01 of the PHP license,      |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_01.txt                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
+  +----------------------------------------------------------------------+
+  | Author:                                                              |
+  +----------------------------------------------------------------------+
+*/
+
+/* $Id$ */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include "php.h"
 #include "php_ini.h"
-#include "ext/standard/file.h"
 #include "ext/standard/info.h"
+#include "php_rtrack.h"
 
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <stdint.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <time.h>
-#include "rtrack.h"
+/* If you declare any globals in php_rtrack.h uncomment this:
+ZEND_DECLARE_MODULE_GLOBALS(rtrack)
+*/
 
+/* True global resources - no need for thread safety here */
+static int le_rtrack;
 
-PHP_MINIT_FUNCTION(rtrack);
-PHP_MSHUTDOWN_FUNCTION(rtrack);
-PHP_MINFO_FUNCTION(rtrack);
+/* {{{ PHP_INI
+ */
+/* Remove comments and fill if you need to have entries in php.ini
+PHP_INI_BEGIN()
+    STD_PHP_INI_ENTRY("rtrack.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_rtrack_globals, rtrack_globals)
+    STD_PHP_INI_ENTRY("rtrack.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_rtrack_globals, rtrack_globals)
+PHP_INI_END()
+*/
+/* }}} */
 
-ZEND_API zend_op_array *(*org_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
+/* Remove the following function when you have successfully modified config.m4
+   so that your module can be compiled into PHP, it exists only for testing
+   purposes. */
 
-ZEND_API void rtrack_record_log(const char* filename)
+/* Every user-visible function in PHP should document itself in the source */
+/* {{{ proto string confirm_rtrack_compiled(string arg)
+   Return a string to confirm that the module is compiled in */
+PHP_FUNCTION(confirm_rtrack_compiled)
 {
-  time_t current_time = {0};
-  struct tm * time_info = {0};
-  char timeString[32] = {0};  // space for "YYYY-mm-dd HH:MM:SS \0"
+	char *arg = NULL;
+	int arg_len, len;
+	char *strg;
 
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &arg, &arg_len) == FAILURE) {
+		return;
+	}
 
-  FILE *fp = fopen("require.log", "a+");
-  if (!fp){
-    return;
-  }
-
-  time(&current_time);
-  time_info = localtime(&current_time);
-
-  strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S ", time_info);
-
-  fputs(timeString, fp);
-  fputs(filename, fp);
-  fputs("\n", fp);
-
-  fflush(fp);
-  fclose(fp);
-
-
-  // zval file_zval;
-  // INIT_ZVAL(file_zval);
-  // ZVAL_STRING(&file_zval, "/tmp/require.log", 1);
-
-  // zval msg_zval;
-  // INIT_ZVAL(msg_zval);
-  // ZVAL_STRING(&msg_zval, filename, 1);
-
-
-  // zval flag_zval;
-  // INIT_ZVAL(flag_zval);
-  // ZVAL_LONG(&flag_zval, 8);
-
-  // zval *params[] = { &file_zval, &msg_zval, &flag_zval };
-  // zend_uint param_count = 3;
-  // zval *retval_ptr;
-
-  // zval function_name;
-  // INIT_ZVAL(function_name);
-  // ZVAL_STRING(&function_name, "file_put_contents", 1);
-
-  // if (call_user_function(
-  //         CG(function_table), NULL /* no object */, &function_name,
-  //         retval_ptr, param_count, params TSRMLS_CC
-  //     ) == SUCCESS
-  // ) {
-  //     /* do something with retval_ptr here if you like */
-  // }
-
-  // /* don't forget to free the zvals */
-  // zval_ptr_dtor(&retval_ptr);
-  // zval_dtor(&function_name);
-  // zval_dtor(&file_zval);
-  // zval_dtor(&msg_zval);
-  // zval_dtor(&flag_zval);
+	len = spprintf(&strg, 0, "Congratulations! You have successfully modified ext/%.78s/config.m4. Module %.78s is now compiled into PHP.", "rtrack", arg);
+	RETURN_STRINGL(strg, len, 0);
 }
+/* }}} */
+/* The previous line is meant for vim and emacs, so it can correctly fold and 
+   unfold functions in source code. See the corresponding marks just before 
+   function definition, where the functions purpose is also documented. Please 
+   follow this convention for the convenience of others editing your code.
+*/
 
-ZEND_API zend_op_array *rtrack_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
+
+/* {{{ php_rtrack_init_globals
+ */
+/* Uncomment this function if you have INI entries
+static void php_rtrack_init_globals(zend_rtrack_globals *rtrack_globals)
 {
-  rtrack_record_log(file_handle->filename);
-  return org_compile_file(file_handle, type);
+	rtrack_globals->global_value = 0;
+	rtrack_globals->global_string = NULL;
 }
+*/
+/* }}} */
 
-zend_module_entry rtrack_module_entry = {
-#if ZEND_MODULE_API_NO >= 20010901
-  STANDARD_MODULE_HEADER,
-#endif
-  "rtrack",
-  NULL,
-  PHP_MINIT(rtrack),
-  PHP_MSHUTDOWN(rtrack),
-  NULL,
-  NULL,
-  PHP_MINFO(rtrack),
-#if ZEND_MODULE_API_NO >= 20010901
-  "1.5.0", /* Replace with version number for your extension */
-#endif
-  STANDARD_MODULE_PROPERTIES
-};
-
-ZEND_GET_MODULE(rtrack);
-
-PHP_MINFO_FUNCTION(rtrack)
-{
-  php_info_print_table_start();
-  php_info_print_table_header(2, "rtrack support", "enabled");
-  php_info_print_table_end();
-}
-
+/* {{{ PHP_MINIT_FUNCTION
+ */
 PHP_MINIT_FUNCTION(rtrack)
 {
-  CG(compiler_options) |= ZEND_COMPILE_EXTENDED_INFO;
-  org_compile_file = zend_compile_file;
-  zend_compile_file = rtrack_compile_file;
-  return SUCCESS;
+	/* If you have INI entries, uncomment these lines 
+	REGISTER_INI_ENTRIES();
+	*/
+	return SUCCESS;
 }
+/* }}} */
 
+/* {{{ PHP_MSHUTDOWN_FUNCTION
+ */
 PHP_MSHUTDOWN_FUNCTION(rtrack)
 {
-  CG(compiler_options) |= ZEND_COMPILE_EXTENDED_INFO;
-  zend_compile_file = org_compile_file;
-  return SUCCESS;
+	/* uncomment this line if you have INI entries
+	UNREGISTER_INI_ENTRIES();
+	*/
+	return SUCCESS;
 }
+/* }}} */
+
+/* Remove if there's nothing to do at request start */
+/* {{{ PHP_RINIT_FUNCTION
+ */
+PHP_RINIT_FUNCTION(rtrack)
+{
+	return SUCCESS;
+}
+/* }}} */
+
+/* Remove if there's nothing to do at request end */
+/* {{{ PHP_RSHUTDOWN_FUNCTION
+ */
+PHP_RSHUTDOWN_FUNCTION(rtrack)
+{
+	return SUCCESS;
+}
+/* }}} */
+
+/* {{{ PHP_MINFO_FUNCTION
+ */
+PHP_MINFO_FUNCTION(rtrack)
+{
+	php_info_print_table_start();
+	php_info_print_table_header(2, "rtrack support", "enabled");
+	php_info_print_table_end();
+
+	/* Remove comments if you have entries in php.ini
+	DISPLAY_INI_ENTRIES();
+	*/
+}
+/* }}} */
+
+/* {{{ rtrack_functions[]
+ *
+ * Every user visible function must have an entry in rtrack_functions[].
+ */
+const zend_function_entry rtrack_functions[] = {
+	PHP_FE(confirm_rtrack_compiled,	NULL)		/* For testing, remove later. */
+	PHP_FE_END	/* Must be the last line in rtrack_functions[] */
+};
+/* }}} */
+
+/* {{{ rtrack_module_entry
+ */
+zend_module_entry rtrack_module_entry = {
+	STANDARD_MODULE_HEADER,
+	"rtrack",
+	rtrack_functions,
+	PHP_MINIT(rtrack),
+	PHP_MSHUTDOWN(rtrack),
+	PHP_RINIT(rtrack),		/* Replace with NULL if there's nothing to do at request start */
+	PHP_RSHUTDOWN(rtrack),	/* Replace with NULL if there's nothing to do at request end */
+	PHP_MINFO(rtrack),
+	PHP_RTRACK_VERSION,
+	STANDARD_MODULE_PROPERTIES
+};
+/* }}} */
+
+#ifdef COMPILE_DL_RTRACK
+ZEND_GET_MODULE(rtrack)
+#endif
+
+/*
+ * Local variables:
+ * tab-width: 4
+ * c-basic-offset: 4
+ * End:
+ * vim600: noet sw=4 ts=4 fdm=marker
+ * vim<600: noet sw=4 ts=4
+ */

@@ -1,0 +1,13 @@
+// $Id$
+// vim:ft=javascript
+
+// If your extension references something external, use ARG_WITH
+// ARG_WITH("rtrack", "for rtrack support", "no");
+
+// Otherwise, use ARG_ENABLE
+// ARG_ENABLE("rtrack", "enable rtrack support", "no");
+
+if (PHP_RTRACK != "no") {
+	EXTENSION("rtrack", "rtrack.c");
+}
+
