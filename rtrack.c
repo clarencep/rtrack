@@ -48,7 +48,7 @@ PHP_INI_END()
 
 ZEND_API zend_op_array *(*org_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
-ZEND_API void rtrack_call_hook_func(const char* hook_func, const char* filename)
+void rtrack_call_hook_func(const char* hook_func, const char* filename)
 {
 	zval	retval;
 	zval	*zfuncname;
@@ -77,79 +77,49 @@ ZEND_API void rtrack_call_hook_func(const char* hook_func, const char* filename)
 	zval_ptr_dtor(&param);
 }
 
-ZEND_API void rtrack_record_log(const char* filename)
+void rtrack_write_log(const char* filename)
 {
-  time_t current_time = {0};
-  struct tm * time_info = {0};
-  char timeString[32] = {0};  // space for "YYYY-mm-dd HH:MM:SS \0"
+	time_t current_time = {0};
+	struct tm * time_info = {0};
+	char timeString[32] = {0};  // space for "YYYY-mm-dd HH:MM:SS \0"
+	FILE *fp;
+	const char *log_file;
 
-  const char *hook_func = RTRACK_G(hook_func);
-  if (hook_func && *hook_func){
-	  rtrack_call_hook_func(hook_func, filename);
-	  return;
-  }
+	log_file = RTRACK_G(log_file);
+	if (!log_file || !*log_file){
+		return;
+	}
 
-  const char *log_file = RTRACK_G(log_file);
-  if (!log_file || !*log_file){
-	  return;
-  }
+	fp = fopen(log_file, "a+");
+	if (!fp){
+		return;
+	}
 
-  FILE *fp = fopen(log_file, "a+");
-  if (!fp){
-      return;
-  }
+	time(&current_time);
+	time_info = localtime(&current_time);
 
-  time(&current_time);
-  time_info = localtime(&current_time);
+	strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S ", time_info);
 
-  strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S ", time_info);
+	fputs(timeString, fp);
+	fputs(filename, fp);
+	fputs("\n", fp);
 
-  fputs(timeString, fp);
-  fputs(filename, fp);
-  fputs("\n", fp);
-
-  fflush(fp);
-  fclose(fp);
-
-
-  // zval file_zval;
-  // INIT_ZVAL(file_zval);
-  // ZVAL_STRING(&file_zval, "/tmp/require.log", 1);
-
-  // zval msg_zval;
-  // INIT_ZVAL(msg_zval);
-  // ZVAL_STRING(&msg_zval, filename, 1);
-
-
-  // zval flag_zval;
-  // INIT_ZVAL(flag_zval);
-  // ZVAL_LONG(&flag_zval, 8);
-
-  // zval *params[] = { &file_zval, &msg_zval, &flag_zval };
-  // zend_uint param_count = 3;
-  // zval *retval_ptr;
-
-  // zval function_name;
-  // INIT_ZVAL(function_name);
-  // ZVAL_STRING(&function_name, "file_put_contents", 1);
-
-  // if (call_user_function(
-  //         CG(function_table), NULL /* no object */, &function_name,
-  //         retval_ptr, param_count, params TSRMLS_CC
-  //     ) == SUCCESS
-  // ) {
-  //     /* do something with retval_ptr here if you like */
-  // }
-
-  // /* don't forget to free the zvals */
-  // zval_ptr_dtor(&retval_ptr);
-  // zval_dtor(&function_name);
-  // zval_dtor(&file_zval);
-  // zval_dtor(&msg_zval);
-  // zval_dtor(&flag_zval);
+	fflush(fp);
+	fclose(fp);
 }
 
-ZEND_API zend_op_array *rtrack_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
+void rtrack_record_log(const char* filename)
+{
+	const char *hook_func = RTRACK_G(hook_func);
+	if (hook_func && *hook_func){
+		rtrack_call_hook_func(hook_func, filename);
+		return;
+	}
+	
+	rtrack_write_log(filename);
+}
+
+zend_op_array *rtrack_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
 {
 	RTRACK_G(count)++;
 	rtrack_record_log(file_handle->filename);
