@@ -1,4 +1,4 @@
-FROM clarencep/lap53:devel
+FROM clarencep/lap56:devel
 
 COPY . /usr/local/src/rtrack
 
