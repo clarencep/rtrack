@@ -19,3 +19,16 @@ ini settings
 `rtrack.log_file` is the log file which is used for rtrack to record required/included files.
 
 
+How to build
+============
+
+In docker
+---------
+
+Just run `./build-docker.sh`.
+
+
+Otherwise
+---------
+
+Just like other php extensions: `phpize && ./configure && make`. Please refer to the `Dockerfile`.
