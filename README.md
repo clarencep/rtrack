@@ -5,10 +5,11 @@ rtrack - track `require()`/`include()`
 functions
 ---------
 
-```
-string rtrack_count();
-```
-Returns total count of required/included files.
+`string rtrack_count() ` returns total count of required/included files.
+
+`string rtrack_get_hook_func()` get the hook func string.
+
+`string rtrack_set_hook_func(string func)` Set the hook func string. Return the previous hook func string.
 
 
 ini settings

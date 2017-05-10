@@ -62,7 +62,13 @@ function hook_rtrack($fileName){
 	echo "HOOK RTRACK: " . $fileName . PHP_EOL;
 }
 
-ini_set('rtrack.hook_func', 'hook_rtrack');
+echo "Hook function: " . rtrack_get_hook_func() . PHP_EOL;
+assert("rtrack_get_hook_func() === ''");
+
+rtrack_set_hook_func('hook_rtrack');
+
+echo "Hook function: " . rtrack_get_hook_func() . PHP_EOL;
+assert("rtrack_get_hook_func() === 'hook_rtrack'");
 
 require('test-include.php');
 

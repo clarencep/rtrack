@@ -43,7 +43,6 @@ static int le_rtrack;
 PHP_INI_BEGIN()
     // STD_PHP_INI_ENTRY("rtrack.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_rtrack_globals, rtrack_globals)
     STD_PHP_INI_ENTRY("rtrack.log_file", "", PHP_INI_ALL, OnUpdateString, log_file, zend_rtrack_globals, rtrack_globals)
-    STD_PHP_INI_ENTRY("rtrack.hook_func", "", PHP_INI_ALL, OnUpdateString, hook_func, zend_rtrack_globals, rtrack_globals)
 PHP_INI_END()
 /* }}} */
 
@@ -185,6 +184,60 @@ PHP_FUNCTION(confirm_rtrack_compiled)
    follow this convention for the convenience of others editing your code.
 */
 
+int _rtrack_get_hook_func(char **p_hook_func){
+	char *hook_func;
+
+	if (p_hook_func == NULL) {
+		return 0;
+	}
+
+	hook_func = RTRACK_G(hook_func);
+	if (!hook_func){
+		*p_hook_func = "";
+		return 0;
+	}
+
+	*p_hook_func = hook_func;
+	return strlen(hook_func);
+}
+
+/* {{{ proto string rtrack_get_hook_func()
+   Get the hook func string. */
+PHP_FUNCTION(rtrack_get_hook_func)
+{
+	int len;
+	char *hook_func;
+
+	len = _rtrack_get_hook_func(&hook_func);
+
+	RETURN_STRINGL(hook_func, len, 1);
+}
+/* }}} */
+
+/* {{{ proto string rtrack_set_hook_func(string func)
+   Set the hook func string. Return the previous hook func string */
+PHP_FUNCTION(rtrack_set_hook_func)
+{
+	char *arg = NULL;
+	int arg_len, len;
+	char *prev_hook_func;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &arg, &arg_len) == FAILURE) {
+		return;
+	}
+
+	len = _rtrack_get_hook_func(&prev_hook_func);
+	
+	if (RTRACK_G(hook_func)){
+		efree(RTRACK_G(hook_func));
+	}
+
+	RTRACK_G(hook_func) = strdup(arg);
+
+	RETURN_STRINGL(prev_hook_func, len, 1);
+}
+/* }}} */
+
 /* {{{ proto int rtrack_count()
    Return a int of how many files are required/included */
 PHP_FUNCTION(rtrack_count)
@@ -198,8 +251,9 @@ PHP_FUNCTION(rtrack_count)
  */
 static void php_rtrack_init_globals(zend_rtrack_globals *rtrack_globals)
 {
-	// rtrack_globals->global_value = 0;
+	rtrack_globals->count = 0;
 	rtrack_globals->log_file = NULL;
+	rtrack_globals->hook_func = NULL;
 }
 /* }}} */
 
@@ -237,6 +291,8 @@ PHP_MSHUTDOWN_FUNCTION(rtrack)
  */
 PHP_RINIT_FUNCTION(rtrack)
 {
+	RTRACK_G(count) = 0;
+
 	return SUCCESS;
 }
 /* }}} */
@@ -271,6 +327,8 @@ PHP_MINFO_FUNCTION(rtrack)
 const zend_function_entry rtrack_functions[] = {
 	PHP_FE(confirm_rtrack_compiled,	NULL)		/* For testing, remove later. */
 	PHP_FE(rtrack_count,	NULL)
+	PHP_FE(rtrack_get_hook_func,	NULL)
+	PHP_FE(rtrack_set_hook_func,	NULL)
 	PHP_FE_END	/* Must be the last line in rtrack_functions[] */
 };
 /* }}} */
