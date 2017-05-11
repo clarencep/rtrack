@@ -48,7 +48,7 @@ PHP_INI_END()
 
 ZEND_API zend_op_array *(*org_compile_file)(zend_file_handle *file_handle, int type TSRMLS_DC);
 
-void rtrack_call_hook_func(const char* hook_func, const char* filename)
+static void rtrack_call_hook_func(const char* hook_func, const char* filename)
 {
 	zval	retval;
 	zval	*zfuncname;
@@ -77,7 +77,7 @@ void rtrack_call_hook_func(const char* hook_func, const char* filename)
 	zval_ptr_dtor(&param);
 }
 
-void rtrack_write_log(const char* filename)
+static void rtrack_write_log(const char* filename)
 {
 	time_t current_time = {0};
 	struct tm * time_info = {0};
@@ -108,7 +108,7 @@ void rtrack_write_log(const char* filename)
 	fclose(fp);
 }
 
-void rtrack_record_log(const char* filename)
+static void rtrack_record_log(const char* filename)
 {
 	const char *hook_func = RTRACK_G(hook_func);
 	if (hook_func && *hook_func){
@@ -154,7 +154,7 @@ PHP_FUNCTION(confirm_rtrack_compiled)
    follow this convention for the convenience of others editing your code.
 */
 
-int _rtrack_get_hook_func(char **p_hook_func){
+static int _rtrack_get_hook_func(char **p_hook_func){
 	char *hook_func;
 
 	if (p_hook_func == NULL) {
@@ -227,13 +227,21 @@ static void php_rtrack_init_globals(zend_rtrack_globals *rtrack_globals)
 }
 /* }}} */
 
+static void php_rtrack_free_hook_func_if_needed() 
+{
+	if (rtrack_globals.hook_func){
+		efree(rtrack_globals.hook_func);
+		rtrack_globals.hook_func = NULL;
+	}
+}
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(rtrack)
 {
 	REGISTER_INI_ENTRIES();
 	
-	RTRACK_G(count) = 0;
+	php_rtrack_init_globals(&rtrack_globals);
 	
 	CG(compiler_options) |= ZEND_COMPILE_EXTENDED_INFO;
 	org_compile_file = zend_compile_file;
@@ -249,6 +257,10 @@ PHP_MSHUTDOWN_FUNCTION(rtrack)
 {
 	UNREGISTER_INI_ENTRIES();
 
+	php_rtrack_init_globals(&rtrack_globals);
+	php_rtrack_free_hook_func_if_needed();
+
+
 	CG(compiler_options) |= ZEND_COMPILE_EXTENDED_INFO;
 	zend_compile_file = org_compile_file;
 
@@ -261,7 +273,7 @@ PHP_MSHUTDOWN_FUNCTION(rtrack)
  */
 PHP_RINIT_FUNCTION(rtrack)
 {
-	RTRACK_G(count) = 0;
+	php_rtrack_init_globals(&rtrack_globals);
 
 	return SUCCESS;
 }
@@ -272,6 +284,9 @@ PHP_RINIT_FUNCTION(rtrack)
  */
 PHP_RSHUTDOWN_FUNCTION(rtrack)
 {
+	php_rtrack_init_globals(&rtrack_globals);
+	php_rtrack_free_hook_func_if_needed();
+
 	return SUCCESS;
 }
 /* }}} */
